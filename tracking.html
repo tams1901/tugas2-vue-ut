@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking Delivery Order - Universitas Terbuka</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div id="app">
+        <header>
+            <h1>Sistem Pemesanan Bahan Ajar Universitas Terbuka</h1>
+            <nav>
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="stok.html" class="nav-link">Stok Bahan Ajar</a>
+                <a href="tracking.html" class="nav-link active">Tracking DO</a>
+            </nav>
+            <button class="dark-mode-toggle hidden" id="darkModeToggle">🌙</button>
+        </header>
+        <main>
+            <h2>Daftar Delivery Order</h2>
+
+            <!-- Search and Sort Controls -->
+            <div class="filter-section">
+                <div class="form-group">
+                    <label>Cari berdasarkan NIM atau Nama:</label>
+                    <input v-model="searchTerm" placeholder="Masukkan NIM atau Nama">
+                </div>
+                <div class="sort-buttons">
+                    <button @click="sortBy('tanggalKirim')">Urutkan berdasarkan Tanggal Kirim</button>
+                    <button @click="sortBy('status')">Urutkan berdasarkan Status</button>
+                </div>
+            </div>
+
+            <!-- List of DO -->
+            <div v-for="doItem in filteredTrackingList" :key="doItem.noDO" class="do-item">
+                <h3>{{ doItem.noDO }}</h3>
+                <button @click="toggleExpand(doItem.noDO)" class="btn-toggle">{{ doItem.expanded ? 'Sembunyikan Detail' : 'Tampilkan Detail' }}</button>
+                <div v-show="doItem.expanded" class="do-details">
+                    <p><strong>NIM:</strong> {{ doItem.nim }}</p>
+                    <p><strong>Nama:</strong> {{ doItem.nama }}</p>
+                    <p><strong>Status:</strong> <span :class="doItem.status === 'Dalam Perjalanan' ? 'status-menipis' : 'status-aman'">{{ doItem.status }}</span></p>
+                    <p><strong>Ekspedisi:</strong> {{ doItem.ekspedisi }}</p>
+                    <p><strong>Tanggal Kirim:</strong> {{ doItem.tanggalKirim }}</p>
+                    <p><strong>Paket:</strong> {{ getPaketInfo(doItem.paket) }}</p>
+                    <div class="paket-detail">
+                        <p><strong>Isi Paket:</strong></p>
+                        <ul>
+                            <li v-for="item in getPaketIsi(doItem.paket)" :key="item">{{ item }}</li>
+                        </ul>
+                    </div>
+                    <p><strong>Total:</strong> Rp {{ doItem.total.toLocaleString() }}</p>
+                </div>
+                <div v-show="doItem.expanded && doItem.perjalanan && doItem.perjalanan.length > 0">
+                    <h4>Perjalanan:</h4>
+                    <ul>
+                        <li v-for="step in doItem.perjalanan" :key="step.waktu">
+                            <strong>{{ step.waktu }}</strong> - {{ step.keterangan }}
+                        </li>
+                    </ul>
+                </div>
+                <div v-show="doItem.expanded" class="do-actions">
+                    <button @click="editDO(doItem.noDO)" class="btn-edit">Edit</button>
+                    <button @click="deleteDO(doItem.noDO)" class="btn-delete">Hapus</button>
+                </div>
+            </div>
+
+            <!-- Add New DO Form -->
+            <div>
+                <h3>Tambah Delivery Order Baru</h3>
+                <form @submit.prevent="addDO">
+                    <div class="form-group">
+                        <label>NIM:</label>
+                        <input v-model="newDO.nim" required>
+                        <span v-if="errors.nim" class="error">{{ errors.nim }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Nama:</label>
+                        <input v-model="newDO.nama" required>
+                        <span v-if="errors.nama" class="error">{{ errors.nama }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Ekspedisi:</label>
+                        <select v-model="newDO.ekspedisi" required>
+                            <option value="">Pilih Ekspedisi</option>
+                            <option v-for="pengiriman in pengirimanList" :value="pengiriman.nama">{{ pengiriman.nama }}</option>
+                        </select>
+                        <span v-if="errors.ekspedisi" class="error">{{ errors.ekspedisi }}</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Paket Bahan Ajar:</label>
+                        <select v-model="newDO.paket" required>
+                            <option value="">Pilih Paket</option>
+                            <option v-for="paket in paket" :value="paket.kode">{{ paket.kode }} - {{ paket.nama }}</option>
+                        </select>
+                        <span v-if="errors.paket" class="error">{{ errors.paket }}</span>
+                    </div>
+                    <div v-if="paketDetail" class="paket-detail">
+                        <p><strong>Detail Paket:</strong></p>
+                        <p><strong>Isi Paket:</strong></p>
+                        <ul>
+                            <li v-for="kode in paketDetail.isi" :key="kode">
+                                {{ kode }} - {{ stok.find(s => s.kode === kode).judul }}
+                            </li>
+                        </ul>
+                        <p><strong>Harga:</strong> Rp {{ paketDetail.harga.toLocaleString() }}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Tanggal Kirim:</label>
+                        <input v-model="newDO.tanggalKirim" type="date">
+                    </div>
+                    <div class="form-group">
+                        <p><strong>Total Harga: Rp {{ newDO.total.toLocaleString() }}</strong></p>
+                    </div>
+                    <button type="submit">Tambah DO</button>
+                </form>
+            </div>
+        </main>
+    </div>
+    <script src="js/transitions.js"></script>
+    <script src="js/tracking-app.js"></script>
+</body>
+</html>
