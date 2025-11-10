@@ -661,6 +661,11 @@ ul {
         transform: translateY(0);
     }
 }
+
+
+
+
+
 @media (max-width: 768px) {
     body {
         font-size: 16px; /* Increased for better readability */
